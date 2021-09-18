@@ -1,0 +1,18 @@
+Goal: to make virtual enviroment for one or more simulated bugs to train their neurons and thereby imitate real life neuron structure
+
+Elements:
+    Basic mechanics of creature:
+        * importing a mesh
+        * rigging the mesh with bones
+        * making physics collisions with this mesh
+        * making coordinate transformations of this mesh when rotating these bones
+        * give the creature input of the enviroment
+        * add cost elements like energy consumption
+    Network elements:
+        * make a representation of a physical network
+        * make limitations on how this network can grow
+        * add cost elements like energy consumption per neuron or per length of neuron
+    Training algorithm of enviroment:
+        * ?
+    Making a physically realistic enviroment:
+        * ?
