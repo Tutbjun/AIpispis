@@ -25,16 +25,17 @@ class subMesh():#burde have en enkelt root mesh, og så evt. nogle undermeshes s
         self.subMeshes = submeshes
 
 def loadMultiMesh(path):
-    with ZipFile(path, 'r') as zip:
-        zip.printdir()
-        zip.extractall()
-        n = os.path.basename(path)
-        n = n.split(".")[0:-1]
-        subMeshPaths = []
-        rootMeshPath = ""
-        for p in os.listdir(n):
-            if 
-        return multMesh([load_model(name=os.path.join("bugObj","root","bug.obj"))])
+    if not os.path.isdir(path):
+        with ZipFile(path, 'r') as zip:
+            zip.printdir()
+            zip.extractall()
+    n = os.path.basename(path)
+    n = n.split(".")[0:-1]
+    subMeshPaths = []
+    rootMeshPath = ""
+    for p in os.listdir(n):
+        if os.path.isdir(p)
+    return multMesh([load_model(name=os.path.join("bugObj","root","bug.obj"))])
 
 ogMesh = loadMultiMesh(os.path.join(os.path.dirname(__file__),"bugObj.zip"))
 
