@@ -39,6 +39,15 @@ class Network():
             self.connects = connects
             self.ODval = OD
 
+neuronSpeed = 0.1
+def updateNetwork(dt):
+    odNeurons = []
+    for i,n in enumerate(net.neuronEnts):
+        if n.neuron.val >= n.neuron.ODval:
+            odNeurons.append(i)
+    #####!HER!
+    
+
 keyHeld = False
 net = Network()
 def update():
