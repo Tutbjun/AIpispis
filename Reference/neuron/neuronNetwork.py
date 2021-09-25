@@ -9,7 +9,7 @@ class NeuronEnt():
     ent = 0
     def __init__(self,neuronArgs):
         self.neuron = Neuron(*neuronArgs)
-        self.ent = Entity(model="sphere",color=color.red)
+        self.ent = Entity(model="sphere",color=color.red,scale=(0.1,0.1,0.1))
         self.ent.position = self.neuron.pos
 
 class Neuron():
