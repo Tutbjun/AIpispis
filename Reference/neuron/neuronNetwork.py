@@ -72,8 +72,11 @@ def GPUmanager(network):
     def updateNetwork():
         for n in network.neuronEnts:#!does not seem to want to for loop after first network itteration
             if n.neuron.val >= n.neuron.ODval:
-                n.neuron.signalProgri = np.append(np.array(n.neuron.signalProgri).flatten(),np.zeros(len(n.neuron.connects)),axis=0)
-                n.neuron.signalProgri = np.reshape(n.neuron.signalProgri,(n.neuron.signalProgri.size//len(n.neuron.connects),len(n.neuron.connects)))
+                if len(n.neuron.connects) > 0:
+                    n.neuron.signalProgri = np.append(np.array(n.neuron.signalProgri).flatten(),np.zeros(len(n.neuron.connects)),axis=0)
+                    n.neuron.signalProgri = np.reshape(n.neuron.signalProgri,(n.neuron.signalProgri.size//len(n.neuron.connects),len(n.neuron.connects)))
+                else:
+                    print("signal!")
                 n.neuron.val -= n.neuron.ODval
                 n.updateSignalEnts()
             if len(n.neuron.signalProgri) != 0:
@@ -119,7 +122,7 @@ def initNetwork():
     connects = []
     for i in range(10):
         con = []
-        for j in range(2):
+        for j in range(1):
             con.append(random.choice([k for k in range(0,10) if k is not i and k not in con]))
         connects.append(con)
     
@@ -129,14 +132,17 @@ def initNetwork():
     
     net.poses.append(np.array([0,0,1]))
     net.poses.append(np.array([0,0,-1]))
-    endNeurons = {}
-    endNeurons['start'] = Network.NeuronEnt(([0,0,1],[],[],1),entColor=color.green)
-    endNeurons['stop'] = Network.NeuronEnt(([0,0,-1],[],[],1),entColor=color.red)
-    for k in endNeurons.keys():
-        for i in range(5):
-            endNeurons[k].neuron.connects.append(random.choice([j for j in range(0,10) if j not in endNeurons[k].neuron.connects]))
-        endNeurons[k].neuron.connectStrength = np.ones(5)
-        net.neuronEnts.append(endNeurons[k])    
+
+    startBoi = Network.NeuronEnt(([0,0,1],[],[],1),entColor=color.green)
+    startBoi.neuron.connects = random.choices([i for i in range(0,10)],k=5)
+    startBoi.neuron.connectStrength = np.ones(5)
+    net.neuronEnts.append(startBoi)
+    endBoi = Network.NeuronEnt(([0,0,-1],[],[],1),entColor=color.red)
+    net.neuronEnts.append(endBoi)
+    for i in random.choices([i for i in range(0,10)],k=5):
+        net.neuronEnts[i].neuron.connects.append(len(net.neuronEnts)-1)
+        net.neuronEnts[i].neuron.connectStrength = np.append(net.neuronEnts[i].neuron.connectStrength,1)
+    
     net.initConnects()
     return net
 
