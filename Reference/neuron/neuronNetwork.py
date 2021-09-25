@@ -122,7 +122,7 @@ def initNetwork():
     connects = []
     for i in range(10):
         con = []
-        for j in range(1):
+        for j in range(2):
             con.append(random.choice([k for k in range(0,10) if k is not i and k not in con]))
         connects.append(con)
     
