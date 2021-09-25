@@ -44,6 +44,7 @@ ent = Entity(model=ogMesh,color=color.color(0, 0, 0.5))
 
 def update():
     print("lmao")
+    
 
 app = Ursina()
 app.run()
