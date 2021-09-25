@@ -21,9 +21,9 @@ class Network():
         neuron = 0
         ent = 0
         conLines = []
-        def __init__(self,neuronArgs):
+        def __init__(self,neuronArgs,entColor=color.blue):
             self.neuron = Network.Neuron(*neuronArgs)
-            self.ent = Entity(model="sphere",color=color.red,scale=(0.1,0.1,0.1))
+            self.ent = Entity(model="sphere",color=entColor,scale=(0.1,0.1,0.1))
             self.ent.position = self.neuron.pos
             
 
@@ -62,10 +62,10 @@ def initNetwork():
     net.poses.append(np.array([0,0,1]))
     net.poses.append(np.array([0,0,-1]))
     endNeurons = {}
-    endNeurons['start'] = Network.NeuronEnt(([0,0,1],[],1))
-    endNeurons['stop'] = Network.NeuronEnt(([0,0,-1],[],1))
+    endNeurons['start'] = Network.NeuronEnt(([0,0,1],[],1),entColor=color.red)
+    endNeurons['stop'] = Network.NeuronEnt(([0,0,-1],[],1),entColor=color.green)
     for k in endNeurons.keys():
-        for i in range(10):
+        for i in range(5):
             endNeurons[k].neuron.connects.append(random.choice([j for j in range(0,10) if j not in endNeurons[k].neuron.connects]))
         net.neuronEnts.append(endNeurons[k])    
     net.initConnects()
