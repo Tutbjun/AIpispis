@@ -26,7 +26,8 @@ class Neuron():
         self.ODval = OD
 
 def update():
-    time.sleep(1)
+    pass
+    #time.sleep(1)
 
 def startUp():
     poses = []
@@ -39,7 +40,9 @@ def startUp():
     neus = []
     for i in range(10):
         neus.append(NeuronEnt((poses,i,[],1)))
-
+    fov = 40
+    camera.orthographic =  True
+    EditorCamera()
     app = Ursina()
     app.run()
 
