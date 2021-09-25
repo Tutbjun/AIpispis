@@ -44,7 +44,7 @@ def startUp():
     EditorCamera()
     app = Ursina()
     PointLight(parent=Entity(),x=5,y=5,z=-5,shadows=True)
-    PointLight(parent=Entity(),x=-100,y=-100,z=-50,shadows=True)
+    #PointLight(parent=Entity(),x=-1000,y=-1000,z=-500,shadows=True)
     app.run()
 
 if __name__ == "__main__":
