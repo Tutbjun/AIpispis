@@ -50,12 +50,12 @@ def GPUmanager(network):
     def updateNetwork():
         for n in network.neuronEnts:#!does not seem to want to for loop after first network itteration
             if n.neuron.val >= n.neuron.ODval:
-                n.neuron.signalProgri = np.append(n.neuron.signalProgri,np.zeros(len(n.neuron.connects)),axis=0)
+                n.neuron.signalProgri = np.append(np.array(n.neuron.signalProgri).flatten(),np.zeros(len(n.neuron.connects)),axis=0)
                 n.neuron.signalProgri = np.reshape(n.neuron.signalProgri,(n.neuron.signalProgri.size//len(n.neuron.connects),len(n.neuron.connects)))
                 n.neuron.val = 0
             if len(n.neuron.signalProgri) != 0:
                 val2Add = dt*neuronSpeed
-                for i,_ in enumerate(n.neuron.signalProgri):
+                for i,_ in list(enumerate(n.neuron.signalProgri))[::-1]:
                     n.neuron.signalProgri[i] = n.neuron.signalProgri[i] + val2Add #TODO: take into account length of neuron
                     endedSigs = np.array(np.nonzero(n.neuron.signalProgri[i] >= 1)).flatten()
                     if len(endedSigs) > 0:
@@ -75,11 +75,11 @@ keyHeld = False
 net = Network()
 def update():
     global keyHeld
-    if held_keys['enter'] and not keyHeld:
+    if held_keys['enter'] or held_keys['space'] and not keyHeld:
         print("ja")
         net.neuronEnts[10].neuron.val = net.neuronEnts[10].neuron.ODval
         keyHeld = True
-    elif not held_keys['enter']:
+    elif not held_keys['enter'] and not held_keys['space']:
         keyHeld = False
 
 
