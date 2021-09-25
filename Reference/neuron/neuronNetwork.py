@@ -1,6 +1,5 @@
 import numpy as np
 from ursina import *
-from ursina import shaders
 import random
 import time
 
@@ -10,7 +9,7 @@ class NeuronEnt():
     ent = 0
     def __init__(self,neuronArgs):
         self.neuron = Neuron(*neuronArgs)
-        self.ent = Entity(model="sphere",color=color.red,shader=shaders.basic_lighting_shader)
+        self.ent = Entity(model="sphere",color=color.red)
         self.ent.position = self.neuron.pos
 
 class Neuron():
@@ -44,6 +43,8 @@ def startUp():
     camera.orthographic =  True
     EditorCamera()
     app = Ursina()
+    PointLight(parent=Entity(),x=5,y=5,z=-5,shadows=True)
+    PointLight(parent=Entity(),x=-100,y=-100,z=-50,shadows=True)
     app.run()
 
 if __name__ == "__main__":
