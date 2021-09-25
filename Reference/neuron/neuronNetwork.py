@@ -7,6 +7,8 @@ import threading
 
 from ursina.lights import AmbientLight
 
+#TODO: signal arraysne bliver inititaliseret på en måde hvor der kommer alt for mange? pls fix. man kan se det på entitiesne også
+
 
 class Network():
     neuronEnts = []
@@ -23,11 +25,31 @@ class Network():
         neuron = 0
         ent = 0
         conLines = []
+        signalEnts = []
         def __init__(self,neuronArgs,entColor=color.blue):
             self.neuron = Network.Neuron(*neuronArgs)
             self.ent = Entity(model="sphere",color=entColor,scale=(0.1,0.1,0.1))
             self.ent.position = self.neuron.pos
-            
+        
+        def updateSignalEnts(self):
+            for e in self.signalEnts:
+                del e
+            self.signalEnts = []
+            for sp in self.neuron.signalProgri:
+                self.signalEnts.append([])
+                for i,s in enumerate(sp):
+                    self.signalEnts[-1].append(Entity(model="sphere",color=color.yellow,scale=(0.01,0.01,0.01)))
+                    self.signalEnts[-1][-1].position = self.neuron.pos
+        
+        def updateSignalPos(self,network):
+            for i,sp in enumerate(self.neuron.signalProgri):
+                for j,s in enumerate(sp):
+                    p1 = (1-s)*np.array(self.neuron.pos)
+                    p2 = s*np.array(network.poses[self.neuron.connects[j]])
+                    try:#!yikes kode, pls fix (men ikke højesteprioritet)
+                        self.signalEnts[i][j].position = p1 + p2
+                    except IndexError:
+                        pass
 
     class Neuron():
         pos = np.zeros(3)
@@ -52,7 +74,8 @@ def GPUmanager(network):
             if n.neuron.val >= n.neuron.ODval:
                 n.neuron.signalProgri = np.append(np.array(n.neuron.signalProgri).flatten(),np.zeros(len(n.neuron.connects)),axis=0)
                 n.neuron.signalProgri = np.reshape(n.neuron.signalProgri,(n.neuron.signalProgri.size//len(n.neuron.connects),len(n.neuron.connects)))
-                n.neuron.val = 0
+                n.neuron.val -= n.neuron.ODval
+                n.updateSignalEnts()
             if len(n.neuron.signalProgri) != 0:
                 val2Add = dt*neuronSpeed
                 for i,_ in list(enumerate(n.neuron.signalProgri))[::-1]:
@@ -81,6 +104,9 @@ def update():
         keyHeld = True
     elif not held_keys['enter'] and not held_keys['space']:
         keyHeld = False
+    for n in net.neuronEnts:
+        n.updateSignalPos(net)
+    
 
 
 def initNetwork():
