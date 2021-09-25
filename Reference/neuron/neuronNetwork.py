@@ -3,6 +3,7 @@ from ursina import *
 import random
 import time
 
+
 from ursina.lights import AmbientLight
 
 
@@ -30,6 +31,7 @@ class Network():
     class Neuron():
         pos = np.zeros(3)
         ODval = 1
+        val = 0
         connects = []
         #allPoses = []
         def __init__(self,pos,connects,OD):
@@ -37,9 +39,21 @@ class Network():
             self.connects = connects
             self.ODval = OD
 
+keyHeld = False
+net = Network()
 def update():
-    pass
+    global keyHeld
+    if held_keys['enter'] and not keyHeld:
+        print("ja")
+        net.neuronEnts[10].neuron.val = net.neuronEnts[10].neuron.ODval
+        keyHeld = True
+    elif not held_keys['enter']:
+        keyHeld = False
+        
+        
+
     #time.sleep(1)
+
 
 def initNetwork():
     poses = []
@@ -54,7 +68,7 @@ def initNetwork():
         for j in range(2):
             con.append(random.choice([k for k in range(0,10) if k is not i and k not in con]))
         connects.append(con)
-    net = Network()
+    
     for i in range(10):
         net.poses.append(poses[i])
         net.neuronEnts.append(Network.NeuronEnt((poses[i],connects[i],1)))
@@ -62,8 +76,8 @@ def initNetwork():
     net.poses.append(np.array([0,0,1]))
     net.poses.append(np.array([0,0,-1]))
     endNeurons = {}
-    endNeurons['start'] = Network.NeuronEnt(([0,0,1],[],1),entColor=color.red)
-    endNeurons['stop'] = Network.NeuronEnt(([0,0,-1],[],1),entColor=color.green)
+    endNeurons['start'] = Network.NeuronEnt(([0,0,1],[],1),entColor=color.green)
+    endNeurons['stop'] = Network.NeuronEnt(([0,0,-1],[],1),entColor=color.red)
     for k in endNeurons.keys():
         for i in range(5):
             endNeurons[k].neuron.connects.append(random.choice([j for j in range(0,10) if j not in endNeurons[k].neuron.connects]))
