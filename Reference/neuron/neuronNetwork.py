@@ -58,10 +58,12 @@ def initNetwork():
     for i in range(10):
         net.poses.append(poses[i])
         net.neuronEnts.append(Network.NeuronEnt((poses[i],connects[i],1)))
-    net.initConnects()
-        
     
-    #neus.append(NeuronEnt((poses,i,connects[i],1)))
+    net.poses.append(np.array([0,0,1]))
+    net.poses.append(np.array([0,0,-1]))
+    net.neuronEnts.append(Network.NeuronEnt(([0,0,1],[random.choice(range(0,10))],1)))
+    net.neuronEnts.append(Network.NeuronEnt(([0,0,-1],[random.choice(range(0,10))],1)))
+    net.initConnects()
     return net
 
 def initCosmetics():
