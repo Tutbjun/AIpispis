@@ -1,0 +1,4 @@
+* bugfixes
+* netværk indenfor mesh
+* input neuroner
+* output neuroner
