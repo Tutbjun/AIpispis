@@ -2,8 +2,12 @@ import numpy as np
 from ursina import *
 import random
 import time
+import threading
+
 
 from ursina.lights import AmbientLight
+
+#TODO: signal arraysne bliver inititaliseret på en måde hvor der kommer alt for mange? pls fix. man kan se det på entitiesne også
 
 
 class Network():
@@ -21,25 +25,92 @@ class Network():
         neuron = 0
         ent = 0
         conLines = []
+        signalEnts = []
         def __init__(self,neuronArgs,entColor=color.blue):
             self.neuron = Network.Neuron(*neuronArgs)
             self.ent = Entity(model="sphere",color=entColor,scale=(0.1,0.1,0.1))
             self.ent.position = self.neuron.pos
-            
+        
+        def updateSignalEnts(self):
+            for e in self.signalEnts:
+                del e
+            self.signalEnts = []
+            for sp in self.neuron.signalProgri:
+                self.signalEnts.append([])
+                for i,s in enumerate(sp):
+                    self.signalEnts[-1].append(Entity(model="sphere",color=color.yellow,scale=(0.01,0.01,0.01)))
+                    self.signalEnts[-1][-1].position = self.neuron.pos
+        
+        def updateSignalPos(self,network):
+            for i,sp in enumerate(self.neuron.signalProgri):
+                for j,s in enumerate(sp):
+                    p1 = (1-s)*np.array(self.neuron.pos)
+                    p2 = s*np.array(network.poses[self.neuron.connects[j]])
+                    try:#!yikes kode, pls fix (men ikke højesteprioritet)
+                        self.signalEnts[i][j].position = p1 + p2
+                    except IndexError:
+                        pass
 
     class Neuron():
         pos = np.zeros(3)
         ODval = 1
+        val = 0
         connects = []
-        #allPoses = []
-        def __init__(self,pos,connects,OD):
+        connectStrength = []
+        signalProgri = []
+        def __init__(self,pos,connects,connectStrength,OD):
             self.pos = pos
             self.connects = connects
             self.ODval = OD
+            self.connectStrength = connectStrength
 
+gpuThread = 0
+
+def GPUmanager(network):
+    neuronSpeed = 0.1
+    dt = 0.1
+    def updateNetwork():
+        for n in network.neuronEnts:#!does not seem to want to for loop after first network itteration
+            if n.neuron.val >= n.neuron.ODval:
+                if len(n.neuron.connects) > 0:
+                    n.neuron.signalProgri = np.append(np.array(n.neuron.signalProgri).flatten(),np.zeros(len(n.neuron.connects)),axis=0)
+                    n.neuron.signalProgri = np.reshape(n.neuron.signalProgri,(n.neuron.signalProgri.size//len(n.neuron.connects),len(n.neuron.connects)))
+                else:
+                    print("signal!")
+                n.neuron.val -= n.neuron.ODval
+                n.updateSignalEnts()
+            if len(n.neuron.signalProgri) != 0:
+                val2Add = dt*neuronSpeed
+                for i,_ in list(enumerate(n.neuron.signalProgri))[::-1]:
+                    n.neuron.signalProgri[i] = n.neuron.signalProgri[i] + val2Add #TODO: take into account length of neuron
+                    endedSigs = np.array(np.nonzero(n.neuron.signalProgri[i] >= 1)).flatten()
+                    if len(endedSigs) > 0:
+                        if len(endedSigs) == len(n.neuron.signalProgri[i]):
+                            n.neuron.signalProgri = np.delete(n.neuron.signalProgri,i,axis=0)
+                        else:
+                            n.neuron.signalProgri[i][endedSigs] = None#!may give error, never tested
+                        valsToAdd = n.neuron.connectStrength[endedSigs]
+                        indecies = np.array(n.neuron.connects)[endedSigs]
+                        for k,j in enumerate(indecies):
+                            network.neuronEnts[j].neuron.val += valsToAdd[k]
+    while True:
+        time.sleep(0.01)
+        updateNetwork()
+
+keyHeld = False
+net = Network()
 def update():
-    pass
-    #time.sleep(1)
+    global keyHeld
+    if held_keys['enter'] or held_keys['space'] and not keyHeld:
+        print("ja")
+        net.neuronEnts[10].neuron.val = net.neuronEnts[10].neuron.ODval
+        keyHeld = True
+    elif not held_keys['enter'] and not held_keys['space']:
+        keyHeld = False
+    for n in net.neuronEnts:
+        n.updateSignalPos(net)
+    
+
 
 def initNetwork():
     poses = []
@@ -54,20 +125,24 @@ def initNetwork():
         for j in range(2):
             con.append(random.choice([k for k in range(0,10) if k is not i and k not in con]))
         connects.append(con)
-    net = Network()
+    
     for i in range(10):
         net.poses.append(poses[i])
-        net.neuronEnts.append(Network.NeuronEnt((poses[i],connects[i],1)))
+        net.neuronEnts.append(Network.NeuronEnt((poses[i],connects[i],np.ones(len(connects[0])),1)))
     
     net.poses.append(np.array([0,0,1]))
     net.poses.append(np.array([0,0,-1]))
-    endNeurons = {}
-    endNeurons['start'] = Network.NeuronEnt(([0,0,1],[],1),entColor=color.green)
-    endNeurons['stop'] = Network.NeuronEnt(([0,0,-1],[],1),entColor=color.red)
-    for k in endNeurons.keys():
-        for i in range(5):
-            endNeurons[k].neuron.connects.append(random.choice([j for j in range(0,10) if j not in endNeurons[k].neuron.connects]))
-        net.neuronEnts.append(endNeurons[k])    
+
+    startBoi = Network.NeuronEnt(([0,0,1],[],[],1),entColor=color.green)
+    startBoi.neuron.connects = random.choices([i for i in range(0,10)],k=5)
+    startBoi.neuron.connectStrength = np.ones(5)
+    net.neuronEnts.append(startBoi)
+    endBoi = Network.NeuronEnt(([0,0,-1],[],[],1),entColor=color.red)
+    net.neuronEnts.append(endBoi)
+    for i in random.choices([i for i in range(0,10)],k=5):
+        net.neuronEnts[i].neuron.connects.append(len(net.neuronEnts)-1)
+        net.neuronEnts[i].neuron.connectStrength = np.append(net.neuronEnts[i].neuron.connectStrength,1)
+    
     net.initConnects()
     return net
 
@@ -83,6 +158,9 @@ def startUp():
     network = initNetwork()
     app = Ursina()
     initCosmetics()
+    global gpuThread
+    gpuThread = threading.Thread(target=GPUmanager,args=[network])
+    gpuThread.start()
     app.run()
 
 if __name__ == "__main__":
