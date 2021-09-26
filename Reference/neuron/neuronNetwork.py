@@ -62,8 +62,8 @@ def initNetwork():
     net.poses.append(np.array([0,0,1]))
     net.poses.append(np.array([0,0,-1]))
     endNeurons = {}
-    endNeurons['start'] = Network.NeuronEnt(([0,0,1],[],1),entColor=color.red)
-    endNeurons['stop'] = Network.NeuronEnt(([0,0,-1],[],1),entColor=color.green)
+    endNeurons['start'] = Network.NeuronEnt(([0,0,1],[],1),entColor=color.green)
+    endNeurons['stop'] = Network.NeuronEnt(([0,0,-1],[],1),entColor=color.red)
     for k in endNeurons.keys():
         for i in range(5):
             endNeurons[k].neuron.connects.append(random.choice([j for j in range(0,10) if j not in endNeurons[k].neuron.connects]))
