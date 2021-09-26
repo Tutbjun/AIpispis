@@ -4,9 +4,6 @@ import random
 import time
 import threading
 
-
-from ursina.lights import AmbientLight
-
 #TODO: signal arraysne bliver inititaliseret på en måde hvor der kommer alt for mange? pls fix. man kan se det på entitiesne også
 
 
@@ -32,8 +29,9 @@ class Network():
             self.ent.position = self.neuron.pos
         
         def updateSignalEnts(self):
-            for e in self.signalEnts:
-                del e
+            for i,e in enumerate(self.signalEnts):
+                self.signalEnts[i] = None
+                del self.signalEnts[i]
             self.signalEnts = []
             for sp in self.neuron.signalProgri:
                 self.signalEnts.append([])
@@ -71,6 +69,7 @@ def GPUmanager(network):
     dt = 0.1
     def updateNetwork():
         for n in network.neuronEnts:#!does not seem to want to for loop after first network itteration
+            n.updateSignalPos(net)
             if n.neuron.val >= n.neuron.ODval:
                 if len(n.neuron.connects) > 0:
                     n.neuron.signalProgri = np.append(np.array(n.neuron.signalProgri).flatten(),np.zeros(len(n.neuron.connects)),axis=0)
@@ -94,7 +93,7 @@ def GPUmanager(network):
                         for k,j in enumerate(indecies):
                             network.neuronEnts[j].neuron.val += valsToAdd[k]
     while True:
-        time.sleep(0.01)
+        time.sleep(0.001)
         updateNetwork()
 
 keyHeld = False
@@ -107,10 +106,6 @@ def update():
         keyHeld = True
     elif not held_keys['enter'] and not held_keys['space']:
         keyHeld = False
-    for n in net.neuronEnts:
-        n.updateSignalPos(net)
-    
-
 
 def initNetwork():
     poses = []
