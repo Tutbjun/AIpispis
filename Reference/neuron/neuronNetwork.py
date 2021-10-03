@@ -66,7 +66,7 @@ gpuThread = 0
 
 def GPUmanager(network):
     neuronSpeed = 0.1
-    dt = 0.1
+    dt = 0.5
     def updateNetwork():
         for n in network.neuronEnts:#!does not seem to want to for loop after first network itteration
             n.updateSignalPos(net)
@@ -86,6 +86,7 @@ def GPUmanager(network):
                     if len(endedSigs) > 0:
                         if len(endedSigs) == len(n.neuron.signalProgri[i]):
                             n.neuron.signalProgri = np.delete(n.neuron.signalProgri,i,axis=0)
+                            n.signalEnts.pop(i)
                         else:
                             n.neuron.signalProgri[i][endedSigs] = None#!may give error, never tested
                         valsToAdd = n.neuron.connectStrength[endedSigs]
@@ -104,7 +105,7 @@ def update():
         print("ja")
         net.neuronEnts[10].neuron.val = net.neuronEnts[10].neuron.ODval
         keyHeld = True
-    elif not held_keys['enter'] and not held_keys['space']:
+    elif keyHeld and (not held_keys['enter'] and not held_keys['space']):
         keyHeld = False
 
 def initNetwork():
@@ -129,7 +130,7 @@ def initNetwork():
     net.poses.append(np.array([0,0,-1]))
 
     startBoi = Network.NeuronEnt(([0,0,1],[],[],1),entColor=color.green)
-    startBoi.neuron.connects = random.choices([i for i in range(0,10)],k=5)
+    startBoi.neuron.connects = random.choices([i for i in range(0,10)],k=5)#!issue here (i think), choses single ones multiple times
     startBoi.neuron.connectStrength = np.ones(5)
     net.neuronEnts.append(startBoi)
     endBoi = Network.NeuronEnt(([0,0,-1],[],[],1),entColor=color.red)
