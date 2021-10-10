@@ -2,8 +2,13 @@
 #include <vector>
 #include "pbPlots.hpp"
 #include "supportLib.hpp"
+#include <chrono>
+#include <string>
+#include <sstream>
 
 int dims = 2;
+std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
+const long long int randSeed = tp.time_since_epoch().count();
 
 class utils{
     public:
@@ -54,23 +59,61 @@ class meshPointRandomizer{
 
 };
 
-
-
-/* void plotMesh(rawMesh mesh){
+void plotMesh(rawMesh mesh, double minx, double miny, double maxx, double maxy){
     RGBABitmapImageReference *imageRef = CreateRGBABitmapImageReference();
-    std::vector<double> x{1,2,3,4,5};
-    std::vector<double> y{1,2,3,4,5};
+    std::vector<double> xs;
+    std::vector<double> ys;
+    for (int i = 0; i < mesh.verts.size(); i++){
+        xs.push_back(mesh.verts[i][0]);
+        ys.push_back(mesh.verts[i][1]);
+    }
+    xs.push_back(minx);
+    ys.push_back(miny);
+    xs.push_back(maxx);
+    ys.push_back(maxy);
+    
+    ScatterPlotSeries *serVerts = GetDefaultScatterPlotSeriesSettings();
+	serVerts->xs = &xs;
+	serVerts->ys = &ys;
+	serVerts->linearInterpolation = false;
+	serVerts->pointType = toVector(L"dots");
+	serVerts->color = CreateRGBColor(1, 0, 0);
 
-    DrawScatterPlot(imageRef, 600, 400, &x, &y);
+    ScatterPlotSettings *settings = GetDefaultScatterPlotSettings();
+	settings->width = 600;
+	settings->height = 400;
+	settings->autoBoundaries = true;
+	settings->autoPadding = true;
+	settings->title = toVector(L"");
+	settings->xLabel = toVector(L"");
+	settings->yLabel = toVector(L"");
+	settings->scatterPlotSeries->push_back(serVerts);
+
+    DrawScatterPlotFromSettings(imageRef,settings);
+
+    for (int i = 0; i < mesh.faces.size(); i++){
+        double x1 = MapXCoordinateAutoSettings(mesh.verts[mesh.faces[i][0]][0], imageRef->image, &xs);
+        double y1 = MapYCoordinateAutoSettings(mesh.verts[mesh.faces[i][0]][1], imageRef->image, &ys);
+        double x2 = MapXCoordinateAutoSettings(mesh.verts[mesh.faces[i][1]][0], imageRef->image, &xs);
+        double y2 = MapYCoordinateAutoSettings(mesh.verts[mesh.faces[i][1]][1], imageRef->image, &ys);
+        DrawLine(imageRef->image,x1,y1,x2,y2,1.5,CreateRGBAColor(0,0,1,0.3));
+    }
+
     std::vector<double> *pngData = ConvertToPNG(imageRef->image);
     WriteToFile(pngData,"plot.png");
     DeleteImage(imageRef->image);
-} */
+}
+
+void plotMesh(rawMesh mesh){
+    return plotMesh(mesh,0,0,1,1);
+}
 
 int main() {
+    srand(randSeed);
     const int verticieCount = 5;
     rawMesh m = rawMesh(dims,verticieCount);
-    //plotMesh(m);
+    std::cin.ignore();
+    plotMesh(m);
     std::cin.ignore();
     return 0;
 }
