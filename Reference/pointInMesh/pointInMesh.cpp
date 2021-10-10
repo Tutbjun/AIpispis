@@ -8,6 +8,8 @@
 #include <math.h>
 
 int dims = 2;
+const float halfPi = M_PI/2;
+const float twoPi = M_PI*2;
 std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 const long long int randSeed = tp.time_since_epoch().count();
 
@@ -42,7 +44,7 @@ class utils{
                     return 0;
             }
         }
-        const float halfPi = M_PI/2;
+        
         float cos(float x, int accuracy){
             long I = * ( long * ) &x;
             I &= ~(1UL << 31);//abs(x)
@@ -75,11 +77,33 @@ class utils{
         float sin(float in){
             return cos(in-halfPi);
         }
+        float tan(float in, int accuracy){
+            return sin(in, accuracy)/cos(in, accuracy);
+        }
+        float tan(float in){
+            return sin(in)/cos(in);
+        }
+        std::vector<float> addVectors(std::vector<float> v1,std::vector<float> v2){
+            std::vector<float> result;
+            for (int i = 0; i < v1.size(); i++){
+                result.push_back(v1[i]+v2[i]);
+            }
+            return result;
+        }
+        std::vector<float> subtractVectors(std::vector<float> v1,std::vector<float> v2){
+            for (int i = 0; i < v2.size(); i++){
+                v2[i] = -v2[i];
+            }
+            return addVectors(v1,v2);
+        }
+        std::vector<float> vecMatMul(std::vector<std::vector<float>> m, std::vector<float> v){
+            return v;//TODO: fix
+        }
 };
 
 class rawMesh{
-    utils util;
     public:
+        utils util;
         std::vector<std::vector<float>> verts;
         std::vector<std::vector<int>> faces;
         rawMesh(){}
@@ -118,7 +142,12 @@ class rawMesh{
 
 class meshPointRandomizer : public rawMesh {
     public:
+        utils util;
         std::vector<std::vector<int>> triangles;
+        std::vector<std::vector<float>> triShifts;
+        std::vector<std::vector<std::vector<float>>> rotMatricies;
+        std::vector<std::vector<float>> foldingLines;
+        
         meshPointRandomizer(rawMesh mesh){
             verts = mesh.verts;
             faces = mesh.faces;
@@ -135,10 +164,61 @@ class meshPointRandomizer : public rawMesh {
                 triangles[i].push_back(verts.size()-1);
             }
         }
+        void genTransforms(){
+            for (int i = 0; i < triangles.size(); i++){
+                //shift transform
+                triShifts.push_back(verts[triangles[i][0]]);
+                //rotation transform
+                std::vector<std::vector<float>> lineVecs;
+                lineVecs.push_back(util.subtractVectors(verts[triangles[i][1]],verts[triangles[i][0]]));
+                lineVecs.push_back(util.subtractVectors(verts[triangles[i][2]],verts[triangles[i][0]]));
+                std::vector<float> tempAngles;
+                for (int i = 0; i < 2; i++){
+                    tempAngles.push_back(std::atan(lineVecs[i][1]/lineVecs[i][0]));
+                    while (tempAngles[i] > twoPi)
+                        tempAngles[i] -= twoPi;
+                    while (tempAngles[i] < 0)
+                        tempAngles[i] += twoPi;
+                }
+                float angle;
+                if (tempAngles[1] > tempAngles[0]){
+                    angle = tempAngles[1];
+                    foldingLines.push_back(lineVecs[0]);//folding transform following line
+                }
+                else{
+                    angle = tempAngles[0];
+                    foldingLines.push_back(lineVecs[1]);//folding transform following line
+                }
+                std::vector<std::vector<float>> matrix = {{0,0},{0,0}};
+                angle -= halfPi;
+                float cosA = cos(angle);
+                float sinA = sin(angle);
+                matrix[0][0] = cosA;
+                matrix[1][1] = cosA;
+                matrix[0][1] = sinA;
+                matrix[1][0] = -sinA;
+                rotMatricies.push_back(matrix);
+                //square 2 triangle transform
+                std::vector<std::vector<float>> refLinePoints;
+                std::vector<std::vector<float>> invMatrix = matrix; //TODO: fix
+                refLinePoints.push_back(util.vecMatMul(invMatrix,verts[triangles[i][2]]));
+                refLinePoints.push_back(util.vecMatMul(invMatrix,verts[triangles[i][1]]));
+                std::vector<float> refLine = util.subtractVectors(refLinePoints[1],refLinePoints[0]);;
+                if (refLine[0] < 0){
+                    std::vector<float> zero;zero.push_back(0);zero.push_back(0);
+                    refLine = util.subtractVectors(zero,refLine);
+                }//TODO: finish up
 
+            }
+        }
+        std::vector<float> pickPoint(){
+            std::vector<float> point;
+            point.push_back(0.5);point.push_back(0.5);
+            return point;
+        }
 };
 
-void plotMesh(std::vector<std::vector<float>> verts, std::vector<std::vector<int>> faces, std::vector<std::vector<int>> triangles, double minx, double miny, double maxx, double maxy){
+void plotMesh(std::vector<std::vector<float>> verts, std::vector<std::vector<int>> faces, std::vector<std::vector<int>> triangles, double minx, double miny, double maxx, double maxy, std::vector<float> point, std::string file){
     RGBABitmapImageReference *imageRef = CreateRGBABitmapImageReference();
     std::vector<double> xs;
     std::vector<double> ys;
@@ -150,13 +230,26 @@ void plotMesh(std::vector<std::vector<float>> verts, std::vector<std::vector<int
     ys.push_back(miny);
     xs.push_back(maxx);
     ys.push_back(maxy);
-    
+
     ScatterPlotSeries *serVerts = GetDefaultScatterPlotSeriesSettings();
 	serVerts->xs = &xs;
 	serVerts->ys = &ys;
 	serVerts->linearInterpolation = false;
 	serVerts->pointType = toVector(L"dots");
 	serVerts->color = CreateRGBColor(1, 0, 0);
+
+    ScatterPlotSeries *serPoint = GetDefaultScatterPlotSeriesSettings();
+    std::vector<std::vector<double>> pxs;
+    std::vector<std::vector<double>> pys;
+    std::vector<double> x = {point[0]};
+    std::vector<double> y = {point[1]};
+    pxs.push_back(x);
+    pys.push_back(y);
+	serPoint->xs = &x;
+	serPoint->ys = &y;
+	serPoint->linearInterpolation = false;
+	serPoint->pointType = toVector(L"crosses");
+	serPoint->color = CreateRGBColor(0, 0, 0);
 
     ScatterPlotSettings *settings = GetDefaultScatterPlotSettings();
 	settings->width = 600;
@@ -167,6 +260,7 @@ void plotMesh(std::vector<std::vector<float>> verts, std::vector<std::vector<int
 	settings->xLabel = toVector(L"");
 	settings->yLabel = toVector(L"");
 	settings->scatterPlotSeries->push_back(serVerts);
+    settings->scatterPlotSeries->push_back(serPoint);
 
     DrawScatterPlotFromSettings(imageRef,settings);
 
@@ -192,17 +286,17 @@ void plotMesh(std::vector<std::vector<float>> verts, std::vector<std::vector<int
     }
 
     std::vector<double> *pngData = ConvertToPNG(imageRef->image);
-    WriteToFile(pngData,"plot.png");
+    WriteToFile(pngData,file);
     DeleteImage(imageRef->image);
 }
 
-void plotMesh(rawMesh mesh){
+void plotMesh(rawMesh mesh, std::vector<float> point, std::string file){
     std::vector<std::vector<int>> triangles;
-    return plotMesh(mesh.verts, mesh.faces, triangles, 0, 0, 1, 1);
+    return plotMesh(mesh.verts, mesh.faces, triangles, 0, 0, 1, 1, point, file);
 }
 
-void plotMesh(meshPointRandomizer mesh){
-    return plotMesh(mesh.verts, mesh.faces, mesh.triangles, 0, 0, 1, 1);
+void plotMesh(meshPointRandomizer mesh, std::vector<float> point, std::string file){
+    return plotMesh(mesh.verts, mesh.faces, mesh.triangles, 0, 0, 1, 1, point, file);
 }
 
 int main() {
@@ -210,7 +304,7 @@ int main() {
     const int verticieCount = 5;
     meshPointRandomizer m = rawMesh(dims,verticieCount);
     m.genDivs();
-    plotMesh(m);
+    std::vector<float> point = m.pickPoint();
+    plotMesh(m, point, "plot1.png");
     return 0;
 }
-
