@@ -96,8 +96,65 @@ class utils{
             }
             return addVectors(v1,v2);
         }
+        std::vector<float> multiplyVector(std::vector<float> v1,float val){
+            std::vector<float> ret;
+            for (int i = 0; i < v1.size(); i++){
+                ret.push_back(v1[i]*val);
+            }
+            return ret;
+        }
+        std::vector<float> divideVector(std::vector<float> v1,float val){
+            return multiplyVector(v1,powf(val,-1));
+        }
+        float sum(std::vector<float> v){
+            while (v.size() > 1){
+                v[1] += v[0];
+                std::vector<float> newV;
+                for (int i = 1; i < v.size(); i++){
+                    newV.push_back(v[i]);
+                }
+                v = newV;
+            }
+            return v[0];
+        }
+        std::vector<float> sumRowwise(std::vector<std::vector<float>> m){
+            std::vector<float> v;
+            for (int i = 0; i < m.size(); i++){
+                v.push_back(sum(m[i]));
+            }
+            return v;
+        }
         std::vector<float> vecMatMul(std::vector<std::vector<float>> m, std::vector<float> v){
-            return v;//TODO: fix
+            std::vector<std::vector<float>> vals2Sum = m;
+            for (int i = 0; i < vals2Sum.size(); i++)
+                for (int j = 0; j < vals2Sum[0].size(); j++)
+                    vals2Sum[i][j] = m[i][j]*v[i];
+            return sumRowwise(vals2Sum);
+        }
+        std::vector<std::vector<float>> getGausJordanInvMatrix(std::vector<std::vector<float>> m){
+            std::vector<std::vector<float>> im(m.size());
+            std::vector<float> emptyRow(m[0].size());
+            for (int i = 0; i < im.size(); i++){
+                im[i] = emptyRow;
+                im[i][i] = 1;
+            }
+            for (int step = 0; step < m[0].size(); step++){
+                float val = m[step][step];
+                m[step] = divideVector(m[step],val);
+                im[step] = divideVector(im[step],val);
+                for (int row = 0; row < m.size(); row++){
+                    if (row != step){
+                        std::vector<float> mVecToRem = multiplyVector(m[step],m[row][step]);
+                        std::vector<float> imVecToRem = multiplyVector(im[step],m[row][step]);
+                        m[row] = subtractVectors(m[row],mVecToRem);
+                        im[row] = subtractVectors(im[row],imVecToRem);
+                    }
+                }
+            }
+            return im;
+        }
+        std::vector<std::vector<float>> invMatrix(std::vector<std::vector<float>> m){
+            return getGausJordanInvMatrix(m);
         }
 };
 
@@ -114,7 +171,7 @@ class rawMesh{
         }
         rawMesh(int dimensions, int vertCount)//generates randomized circular mesh
         {
-            float angleSpacing = 2*M_PI/vertCount;
+            float angleSpacing = twoPi/vertCount;
             std::cout << angleSpacing;
             std::cout << "\n";
             std::cout << vertCount;
@@ -200,7 +257,7 @@ class meshPointRandomizer : public rawMesh {
                 rotMatricies.push_back(matrix);
                 //square 2 triangle transform
                 std::vector<std::vector<float>> refLinePoints;
-                std::vector<std::vector<float>> invMatrix = matrix; //TODO: fix
+                std::vector<std::vector<float>> invMatrix = util.invMatrix(matrix);
                 refLinePoints.push_back(util.vecMatMul(invMatrix,verts[triangles[i][2]]));
                 refLinePoints.push_back(util.vecMatMul(invMatrix,verts[triangles[i][1]]));
                 std::vector<float> refLine = util.subtractVectors(refLinePoints[1],refLinePoints[0]);;
@@ -300,6 +357,7 @@ void plotMesh(meshPointRandomizer mesh, std::vector<float> point, std::string fi
 }
 
 int main() {
+    std::cin.ignore();
     srand(randSeed);
     const int verticieCount = 5;
     meshPointRandomizer m = rawMesh(dims,verticieCount);
