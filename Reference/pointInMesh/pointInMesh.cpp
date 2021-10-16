@@ -6,15 +6,23 @@
 #include <string>
 #include <sstream>
 #include <math.h>
+#include <random>
 
 int dims = 2;
-const float halfPi = M_PI/2;
-const float twoPi = M_PI*2;
+const float Pi = M_PI;
+const float halfPi = Pi/2;
+const float twoPi = Pi*2;
 std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 const long long int randSeed = tp.time_since_epoch().count();
+std::random_device rd;
 
 class utils{
     public:
+        int randI(int min,int max){
+            std::mt19937 rng(rd());
+            std::uniform_int_distribution<int> uni(min,max);
+            return (int)uni(rng);
+        }
         float randF(float start, float stop){
             return start + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(stop-start)));
         }
@@ -45,10 +53,15 @@ class utils{
             }
         }
         
-        float cos(float x, int accuracy){
+        float abs(float x){
             long I = * ( long * ) &x;
             I &= ~(1UL << 31);//abs(x)
             x = * ( float * ) &I;
+            return x;
+        }
+
+        float cos(float x, int accuracy){
+            x = abs(x);
 
             float cycles = x/(halfPi);
             float dummy;
@@ -172,10 +185,6 @@ class rawMesh{
         rawMesh(int dimensions, int vertCount)//generates randomized circular mesh
         {
             float angleSpacing = twoPi/vertCount;
-            std::cout << angleSpacing;
-            std::cout << "\n";
-            std::cout << vertCount;
-            std::cin.ignore();
             for (int i = 0; i < vertCount; i++){
                 std::vector<float> emptyF;
                 std::vector<int> emptyI;
@@ -198,12 +207,18 @@ class rawMesh{
 };
 
 class meshPointRandomizer : public rawMesh {
+    private:
+        bool transformsGenerated = false;
     public:
         utils util;
         std::vector<std::vector<int>> triangles;
         std::vector<std::vector<float>> triShifts;
         std::vector<std::vector<std::vector<float>>> rotMatricies;
-        std::vector<std::vector<float>> foldingLines;
+        std::vector<std::vector<float>> fliprotMatrix = {{-1,0},{0,-1}};
+        std::vector<std::vector<float>> fliprotPoints;
+        std::vector<std::vector<float>> fliprotLines;
+        std::vector<float> fliprotAs;
+        std::vector<std::vector<std::vector<float>>> triangleTransformMatricies;
         
         meshPointRandomizer(rawMesh mesh){
             verts = mesh.verts;
@@ -238,39 +253,58 @@ class meshPointRandomizer : public rawMesh {
                         tempAngles[i] += twoPi;
                 }
                 float angle;
-                if (tempAngles[1] > tempAngles[0]){
+                float deltaAngle = util.abs(tempAngles[1]-tempAngles[0]);
+                std::vector<float> foldingLine;
+                if (deltaAngle < Pi){
                     angle = tempAngles[1];
-                    foldingLines.push_back(lineVecs[0]);//folding transform following line
+                    fliprotPoints.push_back(util.divideVector(lineVecs[0],2));//folding transform rotation
+                    fliprotLines.push_back(lineVecs[0]);//folding transform rotation point
                 }
                 else{
                     angle = tempAngles[0];
-                    foldingLines.push_back(lineVecs[1]);//folding transform following line
+                    fliprotPoints.push_back(util.divideVector(lineVecs[1],2));//folding transform rotation
+                    fliprotLines.push_back(lineVecs[1]);//folding transform rotation point
                 }
-                std::vector<std::vector<float>> matrix = {{0,0},{0,0}};
+                fliprotAs.push_back(fliprotLines[i][1]/fliprotLines[i][0]);
                 angle -= halfPi;
                 float cosA = cos(angle);
                 float sinA = sin(angle);
-                matrix[0][0] = cosA;
-                matrix[1][1] = cosA;
-                matrix[0][1] = sinA;
-                matrix[1][0] = -sinA;
-                rotMatricies.push_back(matrix);
+                std::vector<std::vector<float>> rotMatrix = {{cosA,sinA},{-sinA,cosA}};
+                rotMatricies.push_back(rotMatrix);
                 //square 2 triangle transform
                 std::vector<std::vector<float>> refLinePoints;
-                std::vector<std::vector<float>> invMatrix = util.invMatrix(matrix);
-                refLinePoints.push_back(util.vecMatMul(invMatrix,verts[triangles[i][2]]));
-                refLinePoints.push_back(util.vecMatMul(invMatrix,verts[triangles[i][1]]));
+                std::vector<std::vector<float>> invRotMatrix = util.invMatrix(rotMatrix);
+                refLinePoints.push_back(util.vecMatMul(invRotMatrix,util.subtractVectors(verts[triangles[i][2]],triShifts[i])));
+                refLinePoints.push_back(util.vecMatMul(invRotMatrix,util.subtractVectors(verts[triangles[i][1]],triShifts[i])));
                 std::vector<float> refLine = util.subtractVectors(refLinePoints[1],refLinePoints[0]);;
                 if (refLine[0] < 0){
                     std::vector<float> zero;zero.push_back(0);zero.push_back(0);
                     refLine = util.subtractVectors(zero,refLine);
-                }//TODO: finish up
-
+                }
+                std::vector<float> c = {refLine[0],-2*refLine[1]};
+                std::vector<std::vector<float>> triangleMatrix = {{0,c[0]},{c[1],-0.5f*refLine[1]}};
+                triangleTransformMatricies.push_back(triangleMatrix);
             }
+            transformsGenerated = true;
+        }
+        std::vector<float> performTransforms(std::vector<float> inPoint, int transformSet){
+            std::vector<float> point = util.vecMatMul(triangleTransformMatricies[transformSet],inPoint);//transform to triangle
+            if (point[0]*fliprotAs[transformSet] > point[1]){//flip if outside triangle
+                point = util.subtractVectors(point,fliprotPoints[transformSet]);
+                point = util.vecMatMul(fliprotMatrix,point);
+                point = util.addVectors(point,fliprotPoints[transformSet]);
+            }
+            point = util.vecMatMul(rotMatricies[transformSet],point);//rotate to desired spot
+            point = util.addVectors(point,triShifts[transformSet]);
+            return point;
         }
         std::vector<float> pickPoint(){
-            std::vector<float> point;
-            point.push_back(0.5);point.push_back(0.5);
+            if (transformsGenerated == false)
+                genTransforms();
+            std::vector<float> randCartPoint;
+            randCartPoint.push_back(util.randF());randCartPoint.push_back(util.randF());
+            int pickedTriangle = util.randI(0,triangles.size());
+            std::vector<float> point = performTransforms(randCartPoint,pickedTriangle);
             return point;
         }
 };
@@ -357,7 +391,6 @@ void plotMesh(meshPointRandomizer mesh, std::vector<float> point, std::string fi
 }
 
 int main() {
-    std::cin.ignore();
     srand(randSeed);
     const int verticieCount = 5;
     meshPointRandomizer m = rawMesh(dims,verticieCount);
