@@ -7,20 +7,52 @@
 #include <sstream>
 #include <math.h>
 #include <random>
+#include <numbers>
+
+//TODO:Exceptions 2 fix:
+//! terminate called after throwing an instance of 'std::bad_array_new_length'  what():  std::bad_array_new_length
+//! error with no exception that happens in arround 1/100000 point findings ¯\_(ツ)_/¯
+
+using namespace std;
 
 int dims = 2;
-const float Pi = M_PI;
+const float Pi = numbers::pi;
 const float halfPi = Pi/2;
 const float twoPi = Pi*2;
-std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
+chrono::system_clock::time_point tp = chrono::system_clock::now();
 const long long int randSeed = tp.time_since_epoch().count();
-std::random_device rd;
+random_device rd;
 
 class utils{
     public:
+        void print(string in){
+            std::cout << in << ' ';
+        }
+        void print(float in){
+            print(to_string(in));
+        }
+        void print(vector<float> in){
+            print("\n");
+            for (float e : in)
+                print(e);
+        }
+        void print(vector<vector<float>> in){
+            for (vector<float> v : in)
+                print(v);
+        }
+        int randIFromWeightedList(vector<float> weightedList, float sumOfList){
+            float val = randF(sumOfList);
+            int i;
+            for (i = 0; i < weightedList.size(); i++){
+                val -= weightedList[i];
+                if (val <= 0)
+                    break;
+            }
+            return i;
+        }
         int randI(int min,int max){
-            std::mt19937 rng(rd());
-            std::uniform_int_distribution<int> uni(min,max);
+            mt19937 rng(rd());
+            uniform_int_distribution<int> uni(min,max);
             return (int)uni(rng);
         }
         float randF(float start, float stop){
@@ -96,33 +128,46 @@ class utils{
         float tan(float in){
             return sin(in)/cos(in);
         }
-        std::vector<float> addVectors(std::vector<float> v1,std::vector<float> v2){
-            std::vector<float> result;
+        vector<float> addVectors(vector<float> v1,vector<float> v2){
+            vector<float> result;
             for (int i = 0; i < v1.size(); i++){
                 result.push_back(v1[i]+v2[i]);
             }
             return result;
         }
-        std::vector<float> subtractVectors(std::vector<float> v1,std::vector<float> v2){
+        vector<float> subtractVectors(float val1,vector<float> v2){
+            vector<float> v1;
+            for (int i = 0; i < v2.size(); i++)
+                v1.push_back(val1);
+            return subtractVectors(v1,v2);
+        }
+        vector<float> subtractVectors(vector<float> v1,vector<float> v2){
             for (int i = 0; i < v2.size(); i++){
                 v2[i] = -v2[i];
             }
             return addVectors(v1,v2);
         }
-        std::vector<float> multiplyVector(std::vector<float> v1,float val){
-            std::vector<float> ret;
+        vector<float> multiplyVector(vector<float> v1,float val){
+            vector<float> res;
             for (int i = 0; i < v1.size(); i++){
-                ret.push_back(v1[i]*val);
+                res.push_back(v1[i]*val);
             }
-            return ret;
+            return res;
         }
-        std::vector<float> divideVector(std::vector<float> v1,float val){
-            return multiplyVector(v1,powf(val,-1));
+        vector<vector<float>> multiplyVector(vector<vector<float>> m1,float val){
+            vector<vector<float>> res = m1;
+            for (int i = 0; i < m1.size(); i++){
+                res[i] = multiplyVector(m1[i],val);
+            }
+            return res;
         }
-        float sum(std::vector<float> v){
+        vector<float> divideVector(vector<float> v1,float val){
+            return multiplyVector(v1,1/val);
+        }
+        float sum(vector<float> v){
             while (v.size() > 1){
                 v[1] += v[0];
-                std::vector<float> newV;
+                vector<float> newV;
                 for (int i = 1; i < v.size(); i++){
                     newV.push_back(v[i]);
                 }
@@ -130,23 +175,27 @@ class utils{
             }
             return v[0];
         }
-        std::vector<float> sumRowwise(std::vector<std::vector<float>> m){
-            std::vector<float> v;
-            for (int i = 0; i < m.size(); i++){
-                v.push_back(sum(m[i]));
-            }
-            return v;
+        float dotProduct(vector<float> v1, vector<float> v2){
+            float val = 0;
+            for (int i = 0; i < v1.size(); i++)
+                val += v1[i]*v2[i];
+            return val;
         }
-        std::vector<float> vecMatMul(std::vector<std::vector<float>> m, std::vector<float> v){
-            std::vector<std::vector<float>> vals2Sum = m;
-            for (int i = 0; i < vals2Sum.size(); i++)
-                for (int j = 0; j < vals2Sum[0].size(); j++)
-                    vals2Sum[i][j] = m[i][j]*v[i];
-            return sumRowwise(vals2Sum);
+        vector<float> vecMatMul(vector<vector<float>> m, vector<float> v){
+            vector<float> result = v;
+            for (int i = 0; i < result.size(); i++)
+                result[i] = dotProduct(v,m[i]);
+            return result;
         }
-        std::vector<std::vector<float>> getGausJordanInvMatrix(std::vector<std::vector<float>> m){
-            std::vector<std::vector<float>> im(m.size());
-            std::vector<float> emptyRow(m[0].size());
+        vector<vector<float>> vecMatMul(vector<vector<float>> m, vector<vector<float>> vs){
+            vector<vector<float>> results = vs;
+            for (int i = 0; i < results.size(); i++)
+                results[i] = vecMatMul(m,vs[i]);
+            return results;
+        }
+        vector<vector<float>> getGausJordanInvMatrix(vector<vector<float>> m){
+            vector<vector<float>> im(m.size());
+            vector<float> emptyRow(m[0].size());
             for (int i = 0; i < im.size(); i++){
                 im[i] = emptyRow;
                 im[i][i] = 1;
@@ -157,8 +206,8 @@ class utils{
                 im[step] = divideVector(im[step],val);
                 for (int row = 0; row < m.size(); row++){
                     if (row != step){
-                        std::vector<float> mVecToRem = multiplyVector(m[step],m[row][step]);
-                        std::vector<float> imVecToRem = multiplyVector(im[step],m[row][step]);
+                        vector<float> mVecToRem = multiplyVector(m[step],m[row][step]);
+                        vector<float> imVecToRem = multiplyVector(im[step],m[row][step]);
                         m[row] = subtractVectors(m[row],mVecToRem);
                         im[row] = subtractVectors(im[row],imVecToRem);
                     }
@@ -166,18 +215,24 @@ class utils{
             }
             return im;
         }
-        std::vector<std::vector<float>> invMatrix(std::vector<std::vector<float>> m){
+        vector<vector<float>> invMatrix(vector<vector<float>> m){
             return getGausJordanInvMatrix(m);
+        }
+        float vectorLength(vector<float> v){
+            return sqrtf(powf(v[0],2)+powf(v[1],2));
+        }
+        float vectorAngle(vector<float> v1, vector<float> v2){
+            return acosf(dotProduct(v1,v2)/(vectorLength(v1)*vectorLength(v2)));
         }
 };
 
 class rawMesh{
     public:
         utils util;
-        std::vector<std::vector<float>> verts;
-        std::vector<std::vector<int>> faces;
+        vector<vector<float>> verts;
+        vector<vector<int>> faces;
         rawMesh(){}
-        rawMesh(std::vector<std::vector<float>> vertexList, std::vector<std::vector<int>> faceList)//imports mesh
+        rawMesh(vector<vector<float>> vertexList, vector<vector<int>> faceList)//imports mesh
         {
             verts = vertexList;
             faces = faceList;
@@ -186,8 +241,8 @@ class rawMesh{
         {
             float angleSpacing = twoPi/vertCount;
             for (int i = 0; i < vertCount; i++){
-                std::vector<float> emptyF;
-                std::vector<int> emptyI;
+                vector<float> emptyF;
+                vector<int> emptyI;
                 verts.push_back(emptyF);
                 faces.push_back(emptyI);
                 float theta = i * angleSpacing + util.randF(-angleSpacing/2,angleSpacing/2);
@@ -209,86 +264,94 @@ class rawMesh{
 class meshPointRandomizer : public rawMesh {
     private:
         bool transformsGenerated = false;
+        bool divsGenerated = false;
     public:
         utils util;
-        std::vector<std::vector<int>> triangles;
-        std::vector<std::vector<float>> triShifts;
-        std::vector<std::vector<std::vector<float>>> rotMatricies;
-        std::vector<std::vector<float>> fliprotMatrix = {{-1,0},{0,-1}};
-        std::vector<std::vector<float>> fliprotPoints;
-        std::vector<std::vector<float>> fliprotLines;
-        std::vector<float> fliprotAs;
-        std::vector<std::vector<std::vector<float>>> triangleTransformMatricies;
+        vector<vector<int>> triangles;
+        vector<float> triangleAreas;
+        float triangleAreasSum;
+        vector<vector<float>> triShifts;
+        vector<vector<vector<float>>> rotMatricies;
+        vector<vector<float>> fliprotMatrix = {{-1,0},{0,-1}};
+        vector<vector<float>> fliprotPoints;
+        vector<vector<float>> fliprotLines;
+        vector<float> fliprotAs;
+        vector<vector<vector<float>>> triangleTransformMatricies;
         
         meshPointRandomizer(rawMesh mesh){
             verts = mesh.verts;
             faces = mesh.faces;
         }
         void genDivs(){
-            std::vector<float> zero;
+            vector<float> zero;
             zero.push_back(0.5);zero.push_back(0.5);
             verts.push_back(zero);
             for (int i = 0; i < faces.size(); i++){
-                std::vector<int> emptyI;
+                vector<int> emptyI;
                 triangles.push_back(emptyI);
                 triangles[i].push_back(faces[i][0]);
                 triangles[i].push_back(faces[i][1]);
                 triangles[i].push_back(verts.size()-1);
             }
+            divsGenerated = true;
         }
         void genTransforms(){
             for (int i = 0; i < triangles.size(); i++){
                 //shift transform
                 triShifts.push_back(verts[triangles[i][0]]);
                 //rotation transform
-                std::vector<std::vector<float>> lineVecs;
+                vector<vector<float>> lineVecs;
                 lineVecs.push_back(util.subtractVectors(verts[triangles[i][1]],verts[triangles[i][0]]));
                 lineVecs.push_back(util.subtractVectors(verts[triangles[i][2]],verts[triangles[i][0]]));
-                std::vector<float> tempAngles;
+                vector<float> tempAngles;
                 for (int i = 0; i < 2; i++){
-                    tempAngles.push_back(std::atan(lineVecs[i][1]/lineVecs[i][0]));
+                    tempAngles.push_back(atan(lineVecs[i][1]/lineVecs[i][0]));
                     while (tempAngles[i] > twoPi)
                         tempAngles[i] -= twoPi;
                     while (tempAngles[i] < 0)
                         tempAngles[i] += twoPi;
                 }
                 float angle;
-                float deltaAngle = util.abs(tempAngles[1]-tempAngles[0]);
-                std::vector<float> foldingLine;
-                if (deltaAngle < Pi){
-                    angle = tempAngles[1];
-                    fliprotPoints.push_back(util.divideVector(lineVecs[0],2));//folding transform rotation
-                    fliprotLines.push_back(lineVecs[0]);//folding transform rotation point
-                }
-                else{
-                    angle = tempAngles[0];
-                    fliprotPoints.push_back(util.divideVector(lineVecs[1],2));//folding transform rotation
-                    fliprotLines.push_back(lineVecs[1]);//folding transform rotation point
-                }
-                fliprotAs.push_back(fliprotLines[i][1]/fliprotLines[i][0]);
+                float deltaAngle = tempAngles[1]-tempAngles[0];
+                vector<float> foldingLine;
+                angle = tempAngles[1];
+                foldingLine = lineVecs[0];
                 angle -= halfPi;
                 float cosA = cos(angle);
                 float sinA = sin(angle);
-                std::vector<std::vector<float>> rotMatrix = {{cosA,sinA},{-sinA,cosA}};
+                vector<vector<float>> invRotMatrix = {{cosA,sinA},{-sinA,cosA}};
+                if (util.vecMatMul(invRotMatrix,foldingLine)[0] < 0)//should be decidable by decission tree instead of this crap
+                    invRotMatrix = util.multiplyVector(invRotMatrix,-1);
+                vector<vector<float>> rotMatrix = util.invMatrix(invRotMatrix);
                 rotMatricies.push_back(rotMatrix);
+                //folding transform line definition
+                foldingLine = util.vecMatMul(invRotMatrix,foldingLine);
+                fliprotLines.push_back(foldingLine);
+                fliprotPoints.push_back(util.divideVector(foldingLine,2));
+                fliprotAs.push_back(fliprotLines[i][1]/fliprotLines[i][0]);
                 //square 2 triangle transform
-                std::vector<std::vector<float>> refLinePoints;
-                std::vector<std::vector<float>> invRotMatrix = util.invMatrix(rotMatrix);
-                refLinePoints.push_back(util.vecMatMul(invRotMatrix,util.subtractVectors(verts[triangles[i][2]],triShifts[i])));
-                refLinePoints.push_back(util.vecMatMul(invRotMatrix,util.subtractVectors(verts[triangles[i][1]],triShifts[i])));
-                std::vector<float> refLine = util.subtractVectors(refLinePoints[1],refLinePoints[0]);;
-                if (refLine[0] < 0){
-                    std::vector<float> zero;zero.push_back(0);zero.push_back(0);
-                    refLine = util.subtractVectors(zero,refLine);
-                }
-                std::vector<float> c = {refLine[0],-2*refLine[1]};
-                std::vector<std::vector<float>> triangleMatrix = {{0,c[0]},{c[1],-0.5f*refLine[1]}};
+                vector<vector<float>> refLinePoints;
+                refLinePoints.push_back(util.vecMatMul(invRotMatrix,lineVecs[0]));
+                refLinePoints.push_back(util.vecMatMul(invRotMatrix,lineVecs[1]));
+                if (refLinePoints[0][0]>refLinePoints[1][0])
+                    swap(refLinePoints[0],refLinePoints[1]);
+                float scalerY = refLinePoints[0][1];
+                float scalerX = refLinePoints[1][0];
+                float shifter = scalerY-refLinePoints[1][1];
+                vector<vector<float>> triangleMatrix = {{scalerX,0},{-shifter,scalerY}};
                 triangleTransformMatricies.push_back(triangleMatrix);
+                //find triangle areas
+                float a = util.vectorLength(lineVecs[0]);
+                float b = util.vectorLength(lineVecs[1]);
+                float triAngle = util.vectorAngle(lineVecs[0],lineVecs[1]);
+                float A = 0.5f*a*b*util.sin(triAngle);
+                triangleAreas.push_back(A);
             }
+            triangleAreasSum = util.sum(triangleAreas);
             transformsGenerated = true;
         }
-        std::vector<float> performTransforms(std::vector<float> inPoint, int transformSet){
-            std::vector<float> point = util.vecMatMul(triangleTransformMatricies[transformSet],inPoint);//transform to triangle
+        vector<float> performTransforms(vector<float> inPoint, int transformSet){
+            vector<float> point = util.vecMatMul(triangleTransformMatricies[transformSet],inPoint);//transform to triangle
             if (point[0]*fliprotAs[transformSet] > point[1]){//flip if outside triangle
                 point = util.subtractVectors(point,fliprotPoints[transformSet]);
                 point = util.vecMatMul(fliprotMatrix,point);
@@ -298,21 +361,25 @@ class meshPointRandomizer : public rawMesh {
             point = util.addVectors(point,triShifts[transformSet]);
             return point;
         }
-        std::vector<float> pickPoint(){
+        vector<float> pickPoint(){
+            if (divsGenerated == false)
+                genDivs();
             if (transformsGenerated == false)
                 genTransforms();
-            std::vector<float> randCartPoint;
+
+            vector<float> randCartPoint;
             randCartPoint.push_back(util.randF());randCartPoint.push_back(util.randF());
-            int pickedTriangle = util.randI(0,triangles.size());
-            std::vector<float> point = performTransforms(randCartPoint,pickedTriangle);
+
+            int pickedTriangle = util.randIFromWeightedList(triangleAreas,triangleAreasSum);
+            vector<float> point = performTransforms(randCartPoint,pickedTriangle);
             return point;
         }
 };
 
-void plotMesh(std::vector<std::vector<float>> verts, std::vector<std::vector<int>> faces, std::vector<std::vector<int>> triangles, double minx, double miny, double maxx, double maxy, std::vector<float> point, std::string file){
+void plotMesh(vector<vector<float>> verts, vector<vector<int>> faces, vector<vector<int>> triangles, double minx, double miny, double maxx, double maxy, vector<vector<float>> points, string file){
     RGBABitmapImageReference *imageRef = CreateRGBABitmapImageReference();
-    std::vector<double> xs;
-    std::vector<double> ys;
+    vector<double> xs;
+    vector<double> ys;
     for (int i = 0; i < verts.size(); i++){
         xs.push_back(verts[i][0]);
         ys.push_back(verts[i][1]);
@@ -330,10 +397,14 @@ void plotMesh(std::vector<std::vector<float>> verts, std::vector<std::vector<int
 	serVerts->color = CreateRGBColor(1, 0, 0);
 
     ScatterPlotSeries *serPoint = GetDefaultScatterPlotSeriesSettings();
-    std::vector<std::vector<double>> pxs;
-    std::vector<std::vector<double>> pys;
-    std::vector<double> x = {point[0]};
-    std::vector<double> y = {point[1]};
+    vector<vector<double>> pxs;
+    vector<vector<double>> pys;
+    vector<double> x;
+    vector<double> y;
+    for (int i = 0; i < points.size(); i++){
+        x.push_back(points[i][0]);
+        y.push_back(points[i][1]);
+    }
     pxs.push_back(x);
     pys.push_back(y);
 	serPoint->xs = &x;
@@ -358,7 +429,7 @@ void plotMesh(std::vector<std::vector<float>> verts, std::vector<std::vector<int
     for (int i = 0; i < triangles.size(); i++){
         for (int j = 0; j < 3; j++){
             int jp = j + 1;
-            if (jp > 3)
+            if (jp >= 3)
                 jp -= 3;
             double x1 = MapXCoordinateAutoSettings(verts[triangles[i][j]][0], imageRef->image, &xs);
             double y1 = MapYCoordinateAutoSettings(verts[triangles[i][j]][1], imageRef->image, &ys);
@@ -376,26 +447,42 @@ void plotMesh(std::vector<std::vector<float>> verts, std::vector<std::vector<int
         DrawLine(imageRef->image,x1,y1,x2,y2,1.5,CreateRGBAColor(1,0,0,0.3));
     }
 
-    std::vector<double> *pngData = ConvertToPNG(imageRef->image);
+    vector<double> *pngData = ConvertToPNG(imageRef->image);
     WriteToFile(pngData,file);
     DeleteImage(imageRef->image);
 }
 
-void plotMesh(rawMesh mesh, std::vector<float> point, std::string file){
-    std::vector<std::vector<int>> triangles;
-    return plotMesh(mesh.verts, mesh.faces, triangles, 0, 0, 1, 1, point, file);
+void plotMesh(rawMesh mesh, vector<vector<float>> points, string file){
+    vector<vector<int>> triangles;
+    return plotMesh(mesh.verts, mesh.faces, triangles, 0, 0, 1, 1, points, file);
 }
 
-void plotMesh(meshPointRandomizer mesh, std::vector<float> point, std::string file){
-    return plotMesh(mesh.verts, mesh.faces, mesh.triangles, 0, 0, 1, 1, point, file);
+void plotMesh(rawMesh mesh, vector<float> point, string file){
+    vector<vector<float>> points;
+    points.push_back(point);
+    return plotMesh(mesh, points, file);
+}
+void plotMesh(meshPointRandomizer mesh, vector<float> point, string file){
+    vector<vector<float>> points;
+    points.push_back(point);
+    return plotMesh(mesh, points, file);
+}
+void plotMesh(meshPointRandomizer mesh, vector<vector<float>> points, string file){
+    return plotMesh(mesh.verts, mesh.faces, mesh.triangles, 0, 0, 1, 1, points, file);
+}
+void plotMesh(meshPointRandomizer mesh, string file){
+    vector<vector<float>> points = {{0,0}};
+    return plotMesh(mesh.verts, mesh.faces, mesh.triangles, 0, 0, 1, 1, points, file);
 }
 
 int main() {
     srand(randSeed);
     const int verticieCount = 5;
     meshPointRandomizer m = rawMesh(dims,verticieCount);
-    m.genDivs();
-    std::vector<float> point = m.pickPoint();
-    plotMesh(m, point, "plot1.png");
+    plotMesh(m, "plot1.png");
+    vector<vector<float>> points;
+    for (int i = 0; i < 1000; i++)
+        points.push_back(m.pickPoint());
+    plotMesh(m, points, "plot1.png");
     return 0;
 }
